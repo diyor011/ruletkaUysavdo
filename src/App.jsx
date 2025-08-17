@@ -138,7 +138,7 @@ const saveResult = async (result) => {
     <div className='bg-[linear-gradient(116.82deg,#15A5A0_0%,#B4C29E_100%)] min-h-screen flex flex-col relative'>
       {/* Header */}
       <nav className='pt-8 px-8'>
-        <img src="logo.png" alt="Logo" />
+        <img src="logoMain.png" alt="Logo" />
       </nav>
 
       {/* Main Content */}
