@@ -1,11 +1,19 @@
-import React from "react";
-import { useSelector } from "react-redux";
+import React, { useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
 import { Navigate } from "react-router-dom";
+import { logout } from "../redux/authSlice";
 
 const PrivateRoute = ({ children }) => {
-  const token = useSelector((state) => state.auth.token);
+  const dispatch = useDispatch();
+  const { token, expiry } = useSelector((state) => state.auth);
 
-  if (!token) {
+  useEffect(() => {
+    if (expiry && Date.now() > expiry) {
+      dispatch(logout()); // muddati tugasa avtomatik chiqib ketadi
+    }
+  }, [expiry, dispatch]);
+
+  if (!token || (expiry && Date.now() > expiry)) {
     return <Navigate to="/" replace />;
   }
 
