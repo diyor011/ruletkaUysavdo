@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Phone, Hash, User, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { User, RefreshCw } from 'lucide-react';
 
 const initialGifts = [
   { name: "Xolodilnik", count: 20 },
@@ -17,11 +17,17 @@ const App = () => {
 
   const [gifts, setGifts] = useState([]);
   const [selectedGiftIndex, setSelectedGiftIndex] = useState(null);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false); // ✅ dropdown state
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+const [ishidden ,setIshidden] = useState(false)
+  const [isSpinning, setIsSpinning] = useState(false); // ✅ aylanish jarayoni
 
-  // 🎵 Ovozlar
+  const dropdownRef = useRef(null);
+
   const spinSound = new Audio('/spin.mp3');
   const winSound = new Audio('/win.mp3');
+setInterval(() => {
+  setIshidden(true)
+}, 18000);
 
   useEffect(() => {
     fetchParticipants();
@@ -35,6 +41,18 @@ const App = () => {
     }
   }, []);
 
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   const fetchParticipants = async () => {
     try {
       const response = await fetch('https://fast.uysavdo.com/api/promotions/promocode-users');
@@ -44,7 +62,9 @@ const App = () => {
         data?.users?.map(user => ({
           id: user.user_id,
           phone: user.phone || 'Telefon mavjud emas',
-          promoCode: user.promocode || 'PROMO2025'
+          promoCode: user.promocode || 'PROMO2025',
+          lastName: user.last_name,
+          firstName: user.first_name
         })) || []
       );
     } catch (error) {
@@ -59,11 +79,12 @@ const App = () => {
 
     setIsLoading(true);
     setIsAnimating(true);
+    setIsSpinning(true); // ✅ boshlanganda modal ochiladi
 
     spinSound.currentTime = 0;
     spinSound.play();
 
-    const animationDuration = 10000;
+    const animationDuration = 15000; // 
     const intervalTime = 100;
 
     const interval = setInterval(() => {
@@ -86,66 +107,86 @@ const App = () => {
       winSound.play();
 
       saveResult(result);
+
+      // ✅ tugaganda modal yopilib, card joyiga qaytadi
+
     }, animationDuration);
   };
 
-  // Sovg‘a tanlash
   const handleGiftSelect = (giftIndex) => {
     setSelectedGiftIndex(giftIndex);
-    setIsDropdownOpen(false); // ✅ tanlagandan keyin yopish
+    setIsDropdownOpen(false);
   };
 
-  // Natijani saqlash va sovg‘ani kamaytirish
-const saveResult = async (result) => {
-  if (selectedGiftIndex === null) return;
+  const saveResult = async (result) => {
+    if (selectedGiftIndex === null) return;
 
-  const selectedGift = gifts[selectedGiftIndex];
+    const selectedGift = gifts[selectedGiftIndex];
 
-  try {
-    // 1️⃣ Oldingi save-result API (optional)
-    await fetch('https://fast.uysavdo.com/api/promotions/save-result', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(result)
-    });
+    try {
+      await fetch('https://fast.uysavdo.com/api/promotions/save-result', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(result)
+      });
 
-    // 2️⃣ Yangi assign-prize API
-    await fetch('https://fast.uysavdo.com/api/promotions/assign-prize', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        prize: selectedGift.name.toLowerCase(), // sovga nomi kichik harf
-        user_id: result.id
-      })
-    });
+      await fetch('https://fast.uysavdo.com/api/promotions/assign-prize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prize: selectedGift.name.toLowerCase(),
+          user_id: result.id
+        })
+      });
+    } catch (error) {
+      console.log("Ma'lumot yuborishda xatolik:", error);
+    }
 
-  } catch (error) {
-    console.log("Ma'lumot yuborishda xatolik:", error);
-  }
+    const updatedGifts = [...gifts];
+    if (updatedGifts[selectedGiftIndex].count > 0) {
+      updatedGifts[selectedGiftIndex].count -= 1;
+    }
+    setGifts(updatedGifts);
+    localStorage.setItem("gifts", JSON.stringify(updatedGifts));
 
-  // Sovg‘a sonini kamaytirish
-  const updatedGifts = [...gifts];
-  if (updatedGifts[selectedGiftIndex].count > 0) {
-    updatedGifts[selectedGiftIndex].count -= 1;
-  }
-  setGifts(updatedGifts);
-  localStorage.setItem("gifts", JSON.stringify(updatedGifts));
-  setSelectedGiftIndex(null);
-};
-
+    // ❌ Buni olib tashlaymiz:
+    // setSelectedGiftIndex(null);
+  };
 
   return (
     <div className='bg-[linear-gradient(116.82deg,#15A5A0_0%,#B4C29E_100%)] min-h-screen flex flex-col relative'>
       {/* Header */}
-      <nav className='pt-8 px-8'>
-        <img src="logoMain.png" alt="Logo" />
+      <nav className={`pt-8 px-8 relative transition-all duration-500 ${isSpinning ? 'blur-sm' : ''}`}>
+        <img
+          src="logoMain.png"
+          alt="Logo"
+          className="cursor-pointer"
+          onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+        />
+        {isDropdownOpen && (
+          <ul
+            ref={dropdownRef}
+            className="dropdown menu w-52 rounded-box bg-base-100 mt-2 absolute z-50"
+          >
+            {gifts.map((gift, index) => (
+              <li key={index}>
+                <button
+                  onClick={() => handleGiftSelect(index)}
+                  disabled={gift.count === 0}
+                  className="flex justify-between w-full"
+                >
+                  <span>{gift.name}</span>
+                  <span className="badge">{gift.count}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </nav>
 
       {/* Main Content */}
-      <main className='flex-1 flex items-center justify-center p-8 flex-col'>
-        <div className='max-w-md w-full space-y-8'>
-
-          {/* Promo ruletka */}
+      <main className={`flex-1 flex items-center justify-center p-8 flex-col transition-all duration-500 ${isSpinning ? 'blur-sm' : ''}`}>
+        <div className='max-w-[45%] w-full space-y-8'>
           <div className='bg-white rounded-3xl p-8 shadow-2xl'>
             <div className='text-center space-y-6'>
               <div className='flex justify-center'>
@@ -153,38 +194,11 @@ const saveResult = async (result) => {
               </div>
               <div className='bg-[linear-gradient(116.82deg,#15A5A0_0%,#B4C29E_100%)] text-white px-6 py-2 rounded-full font-bold text-lg'>
                 {isAnimating ? 'PROMO????' : selectedParticipant?.promoCode || 'PROMOCODE2025'}
+
               </div>
             </div>
           </div>
 
-          {/* Sovg‘alar menyusi */}
-          <div>
-            <button
-              className="p-2 rounded-xl shadow bg-[linear-gradient(116.82deg,#15A5A0_0%,#B4C29E_100%)] text-white w-full"
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            >
-              Sovgani tanlash
-            </button>
-
-            {isDropdownOpen && (
-              <ul className="dropdown menu w-full rounded-box bg-base-100 mt-2">
-                {gifts.map((gift, index) => (
-                  <li key={index}>
-                    <button
-                      onClick={() => handleGiftSelect(index)}
-                      disabled={gift.count === 0}
-                      className="flex justify-between w-full"
-                    >
-                      <span>{gift.name}</span>
-                      <span className="badge">{gift.count}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          {/* Randomni boshlash tugmasi */}
           {selectedGiftIndex !== null && (
             <button
               onClick={startRandomSpin}
@@ -196,23 +210,35 @@ const saveResult = async (result) => {
             </button>
           )}
 
-          {/* Natija */}
-          {selectedParticipant && (
-            <div className='bg-white rounded-3xl p-6 shadow-2xl border-l-4 border-teal-500'>
-              <h3 className='text-teal-600 font-bold text-lg flex items-center gap-2'>
-                <User className='w-5 h-5' /> Tanlangan Ishtirokchi
-              </h3>
-              <div className='mt-3 space-y-2'>
-                <div className='flex justify-between'>
-                  <span>Telefon:</span>
-                  <span>{selectedParticipant.phone}</span>
+          {/* Winner Overlay (faqat aylanish vaqtida) */}
+          {isSpinning && selectedParticipant && (
+            <div className="fixed inset-0 flex items-center justify-center z-50">
+              <div className="bg-white rounded-3xl p-10 shadow-2xl border-l-8 border-teal-500 max-w-4xl w-full transform scale-110 transition-transform duration-700">
+                <h3 className='text-teal-600 font-bold text-2xl flex items-center gap-2'>
+                  <User className='w-6 h-6' /> Tanlangan Ishtirokchi
+                </h3>
+                <div className='mt-5 space-y-3 text-lg'>
+                  <div className='flex justify-between'>
+                    <span className='font-bold'>Telefon:</span>
+                    <span>{selectedParticipant.phone}</span>
+                  </div>
+                  <div className='flex justify-between'>
+                    <span className='font-bold'>Promo kod:</span>
+                    <span className='font-bold text-teal-600 bg-teal-50 px-4 py-2 rounded-full text-lg'>
+                      {selectedParticipant.promoCode}
+                    </span>
+                  </div>
+                  <div className='flex justify-between'>
+                    <span className='font-bold'>Ism familiya:</span>
+                    <span className='font-bold text-teal-600 bg-teal-50 px-3 py-1 rounded-full text-sm'>
+                      {selectedParticipant.lastName} {selectedParticipant.firstName}
+                    </span>
+                  </div>
+                
                 </div>
-                <div className='flex justify-between'>
-                  <span>Promo kod:</span>
-                  <span className='font-bold text-teal-600 bg-teal-50 px-3 py-1 rounded-full text-sm'>
-                    {selectedParticipant.promoCode}
-                  </span>
-                </div>
+
+
+                {/* 🔥 Yangi tugma qo‘shildi */}
               </div>
             </div>
           )}
@@ -221,9 +247,49 @@ const saveResult = async (result) => {
       </main>
 
       {/* Footer */}
-      <footer className='p-8 text-center text-white/80 text-sm flex justify-end'>
+      <footer className={`p-8 text-center text-white/80 text-sm flex justify-end transition-all duration-500 ${isSpinning ? 'blur-sm' : ''}`}>
         <img className='absolute bottom-0 right-0' src="footer.png" alt="Footer" />
       </footer>
+
+      {/* Winner Overlay (faqat aylanish vaqtida) */}
+      {isSpinning && selectedParticipant && (
+        <div className="fixed inset-0 flex items-center justify-center z-50">
+          <div className="bg-white rounded-3xl p-10 shadow-2xl border-l-8 border-teal-500 max-w-7xl w-full transform scale-120 transition-transform duration-700 py-20">
+            <h3 className='text-teal-600 font-bold text-4xl flex items-center gap-2'>
+              <User className='w-16 h-6' /> Tanlangan Ishtirokchi
+            </h3>
+            <div className='mt-5 space-y-3 text-lg'>
+              <div className='flex justify-between'>
+                <span className='font-bold text-2xl'>Telefon:</span>
+                <span className='font-bold text-2xl'>{selectedParticipant.phone}</span>
+              </div>
+              <div className='flex justify-between'>
+                <span className='font-bold text-2xl'>Promo kod:</span>
+                <span className='font-bold text-2xl text-teal-600 bg-teal-50 px-4 py-2 rounded-full'>
+                  {selectedParticipant.promoCode}
+                </span>
+              </div>
+              <div className='flex justify-between'>
+                <span className='font-bold text-2xl'>Ism familiya:</span>
+                <span className='font-bold text-2xl text-teal-600 bg-teal-50 px-3 py-1 rounded-full '>
+                  {selectedParticipant.lastName}
+                  {selectedParticipant.firstName}
+                </span>
+              </div>
+            </div>
+               <div className={`mt-6  justify-center flex ` }>
+                    <button
+                      onClick={() => setIsSpinning(false)}
+                      className={`bg-teal-600 text-white px-6 py-2 rounded-full font-semibold hover:bg-teal-700 ${ishidden ? 'block'  : 'hidden'}` }
+                    >
+                      Randomni qayta ishlatish
+                    </button>
+                  </div>
+          </div>
+         
+        </div>
+        
+      )}
     </div>
   );
 };

@@ -18,7 +18,6 @@ const LoginPage = () => {
     e.preventDefault();
 
     if (phone && password) {
-      // Bu joyda backend API chaqirsa bo‘ladi
       if (phone === "+998905122180" && password === "1") {
         dispatch(
           login({
