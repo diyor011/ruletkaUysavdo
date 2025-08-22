@@ -27,7 +27,7 @@ const [ishidden ,setIshidden] = useState(false)
   const winSound = new Audio('/win.mp3');
 setInterval(() => {
   setIshidden(true)
-}, 18000);
+}, 20000);
 
   useEffect(() => {
     fetchParticipants();
