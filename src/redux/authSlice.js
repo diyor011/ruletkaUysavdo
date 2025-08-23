@@ -1,7 +1,16 @@
 import { createSlice } from "@reduxjs/toolkit";
 
+const getLocalUser = () => {
+  const userStr = localStorage.getItem("user");
+  try {
+    return userStr ? JSON.parse(userStr) : null;
+  } catch {
+    return null; // agar noto‘g‘ri JSON bo‘lsa ham error bermasligi uchun
+  }
+};
+
 const initialState = {
-  user: JSON.parse(localStorage.getItem("user")) || null,
+  user: getLocalUser(),
   token: localStorage.getItem("token") || null,
   expiry: localStorage.getItem("expiry")
     ? parseInt(localStorage.getItem("expiry"))
