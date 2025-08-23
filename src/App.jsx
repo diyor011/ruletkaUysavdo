@@ -68,82 +68,115 @@ const App = () => {
   };
 
   // Random sovg'a tanlash
-  const handleRandomGift = () => {
-    const availableGifts = gifts.filter(g => g.count > 0);
-    if (availableGifts.length === 0) {
-      alert("Sovg‘alar tugadi!");
-      return;
-    }
+// Random sovg'a tanlash
+const handleRandomGift = () => {
+  const availableGifts = gifts.filter(g => g.count > 0);
+  if (availableGifts.length === 0) {
+    alert("Sovg‘alar tugadi!");
+    return;
+  }
 
-    setIsGiftAnimating(true);
-    setSelectedGift(null);
+  // ❗ Agar faqat 1 ta sovg‘a qolgan bo‘lsa → animatsiya qilinmaydi
+  if (availableGifts.length === 1) {
+    setSelectedGift(availableGifts[0]);
+    return;
+  }
 
-    let currentIndex = 0;
-    const interval = setInterval(() => {
-      setSelectedGift(availableGifts[currentIndex]);
-      currentIndex = (currentIndex + 1) % availableGifts.length;
-    }, 100);
+  setIsGiftAnimating(true);
+  setSelectedGift(null);
 
-    setTimeout(() => {
-      clearInterval(interval);
-      const giftIndex = Math.floor(Math.random() * availableGifts.length);
-      setSelectedGift(availableGifts[giftIndex]);
-      setIsGiftAnimating(false);
-    }, 5000);
-  };
-// Component ichida state qo'shamiz
-const [showFireworks, setShowFireworks] = useState(false);
-
-// Foydalanuvchi tanlanganda
-const startRandomSpin = async () => {
-  if (!selectedGift) return;
-
-  await fetchParticipants();
-  if (participants.length === 0) return;
-
-  setIsLoading(true);
-  setIsAnimating(true);
-  setIsSpinning(true);
-  setIshidden(false);
-
+  // 🔊 Spin ovozini yoqamiz
   spinSound.current.currentTime = 0;
   spinSound.current.play();
 
+  let currentIndex = 0;
   const interval = setInterval(() => {
-    const currentIndex = Math.floor(Math.random() * participants.length);
-    setSelectedParticipant(participants[currentIndex]);
+    setSelectedGift(availableGifts[currentIndex]);
+    currentIndex = (currentIndex + 1) % availableGifts.length;
   }, 100);
 
-  setTimeout(async () => {
+  setTimeout(() => {
     clearInterval(interval);
+
+    const giftIndex = Math.floor(Math.random() * availableGifts.length);
+    setSelectedGift(availableGifts[giftIndex]);
+    setIsGiftAnimating(false);
+
+    // 🔊 Spinni o‘chirib, win ovozini qo‘yamiz
     spinSound.current.pause();
-
-    const finalParticipant = participants[Math.floor(Math.random() * participants.length)];
-    const result = { ...finalParticipant, prize: selectedGift.name, selectedAt: new Date().toISOString() };
-
-    setSelectedParticipant(result);
-    setIsAnimating(false);
-    setIsLoading(false);
-
     winSound.current.currentTime = 0;
     winSound.current.play();
 
-    // 🔹 Bu yerda GIFni ko'rsatamiz
-    setShowFireworks(true);
-    setTimeout(() => setShowFireworks(false), 10000); // 5 soniyadan keyin yashirish
-
-    await saveResult(result, selectedGift);
-    await fetchParticipants();
-    setTimeout(() => setIshidden(true), 10000);
-  }, 10000);
+  }, 5000);
 };
 
+
+  // Foydalanuvchi random tanlash
+  const startRandomSpin = async () => {
+    if (!selectedGift) return;
+
+    // Foydalanuvchilarni yangilash
+    await fetchParticipants();
+
+    if (participants.length === 0) {
+      alert("Foydalanuvchilar mavjud emas!");
+      return;
+    }
+
+    setIsLoading(true);
+    setIsAnimating(true);
+    setIsSpinning(true);
+    setIshidden(false);
+
+    spinSound.current.currentTime = 0;
+    spinSound.current.play();
+
+    const animationDuration = 10000; // 10 sekund
+    const intervalTime = 100; // 0.1 sekund
+
+    const interval = setInterval(() => {
+      const currentIndex = Math.floor(Math.random() * participants.length);
+      setSelectedParticipant(participants[currentIndex]);
+    }, intervalTime);
+
+    setTimeout(async () => {
+      clearInterval(interval);
+      spinSound.current.pause();
+
+
+      // Final foydalanuvchi
+      const finalParticipant = participants[Math.floor(Math.random() * participants.length)];
+      const result = {
+        ...finalParticipant,
+        prize: selectedGift.name,
+        selectedAt: new Date().toISOString()
+      };
+
+      setSelectedParticipant(result);
+      setIsAnimating(false);
+      setIsLoading(false);
+
+      winSound.current.currentTime = 0;
+      winSound.current.play();
+
+      await saveResult(result, selectedGift);
+
+      // Spin tugagandan keyin participants yangilash
+      await fetchParticipants();
+
+      if (participants.length === 0) {
+        alert("Foydalanuvchilar mavjud emas!");
+      }
+
+      setTimeout(() => setIshidden(true), 10000);
+    }, animationDuration);
+  };
 
   // Backend-ga natijani yuborish va sovg‘a countini kamaytirish
   const saveResult = async (result, selectedGift) => {
     try {
       // Natijani saqlash
-      await fetch('https://fast.uysavdo.com/api/promotions/save-result', {
+      await fetch('https://fast.uysavdo.com//api/promotions/save-result', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(result)
@@ -151,7 +184,7 @@ const startRandomSpin = async () => {
 
       // Sovg‘ani foydalanuvchiga biriktirish
       const backendGiftKey = giftKeyMap[selectedGift.name];
-      await fetch('https://fast.uysavdo.com/api/promotions/assign-prize', {
+      await fetch('https://fast.uysavdo.com//api/promotions/assign-prize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -225,6 +258,7 @@ const startRandomSpin = async () => {
             {isGiftAnimating ? 'Sovga tanlanmoqda...' : 'Sovgani random tanlash'}
           </button>
 
+
           {selectedGift && !isGiftAnimating && (
             <button
               onClick={startRandomSpin}
@@ -287,12 +321,6 @@ const startRandomSpin = async () => {
                 </div>
               </div>
             </div>
-            {/* Fireworks GIF */}
-            {showFireworks && (
-              <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
-                <img src="/source.gif" alt="Fireworks" className="w-full h-full object-cover" />
-              </div>
-            )}
 
             <div className='mt-8 flex justify-center'>
               <button
@@ -305,6 +333,7 @@ const startRandomSpin = async () => {
           </div>
         </div>
       )}
+
 
       {/* Foydalanuvchilar yo‘qligini ko‘rsatish */}
       {!isSpinning && participants.length === 0 && (
