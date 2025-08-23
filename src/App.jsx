@@ -50,7 +50,7 @@ const App = () => {
   // Foydalanuvchilarni backend dan olish
   const fetchParticipants = async () => {
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/promotions/promocode-users');
+      const response = await fetch('https://fast.uysavdo.com/api/promotions/promocode-users');
       const data = await response.json();
       const users = data?.users?.map(user => ({
         id: user.user_id,
